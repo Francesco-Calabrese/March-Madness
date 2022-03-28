@@ -35,3 +35,6 @@ It then uses the rules.txt file to assign points per statistic for the west, eas
 
 The final points found by these rules are then multiplied by a percentage (average game percent, season percent) to offset the major point differences. 
 
+Updates
+-----
+This program has only imported the 64 teams that participated in the 2022 March Madness Event. To upload more teams, go to the teams section on ESPN (https://www.espn.com/mens-college-basketball/teams) and copy the statistics link under the team name. Add that link to 
