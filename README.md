@@ -37,4 +37,4 @@ The final points found by these rules are then multiplied by a percentage (avera
 
 Updates
 -----
-This program has only imported the 64 teams that participated in the 2022 March Madness Event. To upload more teams, go to the teams section on ESPN (https://www.espn.com/mens-college-basketball/teams) and copy the statistics link under the team name. Add that link to 
+This program has only imported the 64 teams that participated in the 2022 March Madness Event. To upload more teams, go to the teams section on ESPN (https://www.espn.com/mens-college-basketball/teams) and copy the statistics link under the team name. Add that link and the team name to the switch statement on line 643 in the source code document. Make sure the team name in the teams.txt file matches the team name in this switch statement.
