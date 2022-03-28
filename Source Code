@@ -1,0 +1,897 @@
+package marchmadness;
+
+import java.io.File;
+import java.io.FileNotFoundException;
+import java.util.Scanner;
+
+import javax.swing.JOptionPane;
+
+public class MarchMadness {
+	
+	private static BracketGUI westBracket;
+	private static BracketGUI eastBracket;
+	private static BracketGUI southBracket;
+	private static BracketGUI midwestBracket;
+	private static BracketGUI finalFour;
+	private static ProgressGUI progress;
+	
+	public static void main(String[] args) {
+		
+		//confirmation box to let the user know the program is about to run.
+		int continueBtn = JOptionPane.showConfirmDialog(null, "Selecting the teams from a file called teams.txt. Place each" + 
+				" team on a new line starting with the west, east, south, and finally midwest. Using rules from a file" + 
+				" called rules.txt and other rules.txt. Continue?");
+	
+		if (continueBtn == 0) {		//user is selecting to continue
+			
+			//creates the status bar and the bracket objects for the different regions
+			progress = new ProgressGUI(63);
+			westBracket = new BracketGUI("West", progress);
+			eastBracket = new BracketGUI("East", progress);
+			southBracket = new BracketGUI("South", progress);
+			midwestBracket = new BracketGUI("MidWest", progress);
+			finalFour = new BracketGUI("Final Four", progress);
+			
+			//gets the teams from the file and calculates the champion
+			getTeams();
+			calculateChampion();
+			
+			//populates the brackets with the winners
+			westBracket.populateBracket();
+			eastBracket.populateBracket();
+			southBracket.populateBracket();
+			midwestBracket.populateBracket();
+			
+			//closes the progress bar and displays the brackets on a GUI
+			progress.close();
+			westBracket.displayBracket();
+			eastBracket.displayBracket();
+			southBracket.displayBracket();
+			midwestBracket.displayBracket();
+			finalFour.displayBracket();
+		}
+	}
+		
+	private static void calculateChampion() {
+		//finds winners of the west bracket
+		westBracket.findWinners(16);
+		westBracket.findWinners(8);
+		westBracket.findWinners(4);
+		westBracket.findWinners(2);
+		
+		//finds the winner of the east bracket
+		eastBracket.findWinners(16);
+		eastBracket.findWinners(8);
+		eastBracket.findWinners(4);
+		eastBracket.findWinners(2);
+		
+		//finds the winner of the south bracket
+		southBracket.findWinners(16);
+		southBracket.findWinners(8);
+		southBracket.findWinners(4);
+		southBracket.findWinners(2);
+		
+		//finds the winner of the midwest bracket
+		midwestBracket.findWinners(16);
+		midwestBracket.findWinners(8);
+		midwestBracket.findWinners(4);
+		midwestBracket.findWinners(2);
+		
+		//finds the winner of the final four
+		finalFour.setChampionRoundOf4(westBracket.getChampion(), eastBracket.getChampion(), southBracket.getChampion(),
+				midwestBracket.getChampion());
+		
+		finalFour.findWinners(4);
+		finalFour.setChampionRoundOf2();
+		finalFour.findWinners(2);
+		finalFour.setChampionFinalFour();
+		
+	}
+
+	//gets the teams from the teams.txt file
+	private static void getTeams() {
+		int teamNumber = 1;
+		File objFile = new File("teams.txt");
+		//checks for file and closes the program if not found.
+		if (!objFile.exists()) {
+			JOptionPane.showMessageDialog(null, "Did not find teams.txt. Place in the same folder location" + 
+					" as this program.");
+			System.exit(0);
+		}
+		try {
+			Scanner reader = new Scanner(objFile);
+			//file should be ordered from line 1 -> 64 starting with the west, east, south, and finally midwest bracket
+			while(reader.hasNextLine()) {
+				if (teamNumber <= 16) {
+					westBracket.addTeam(reader.nextLine(), 16);			//adds the team to round of 16
+					teamNumber++;
+				} else if (teamNumber <= 32) {
+					eastBracket.addTeam(reader.nextLine(), 16);
+					teamNumber++;
+				} else if (teamNumber <= 48) {
+					southBracket.addTeam(reader.nextLine(), 16);
+					teamNumber++;
+				} else if (teamNumber <= 64) {
+					midwestBracket.addTeam(reader.nextLine(), 16);
+					teamNumber++;
+				}
+			}
+			reader.close();
+		} catch (FileNotFoundException e) {
+			e.printStackTrace();
+		}
+		
+	}
+	
+}
+
+----------------------------------------------------------------------------------------------------------------------------------------------------
+
+package marchmadness;
+
+import java.awt.Container;
+import java.io.File;
+import java.io.FileNotFoundException;
+import java.io.IOException;
+import java.util.Scanner;
+
+import javax.swing.JFrame;
+import javax.swing.JLabel;
+import javax.swing.JOptionPane;
+import javax.swing.SpringLayout;
+
+import org.jsoup.Jsoup;
+
+public class BracketGUI {
+	
+	//the layout of the brackets
+	private JFrame bracketFrame;
+	private SpringLayout layout;
+	private Container teamContainer;
+	
+	//the brackets for this region
+	private String[] bracket16;
+	private String[] bracket8;
+	private String[] bracket4;
+	private String[] bracket2;
+	private String bracketChampion;
+	
+	private int count;
+	private int statNum;
+	private int statIndex;
+	private boolean otherRules;
+	
+	//the labels for the GUI and progress bar
+	private JLabel[] teamLabel16;
+	private JLabel[] teamLabel8;
+	private JLabel[] teamLabel4;
+	private JLabel[] teamLabel2;
+	private JLabel teamLabelChampion;
+	private ProgressGUI progress;
+	
+	public BracketGUI(String bracketRegion, ProgressGUI progress){
+		bracket16 = new String[16];
+		bracket8 = new String[8];
+		bracket4 = new String[4];
+		bracket2 = new String[2];
+		bracketChampion = "";
+		
+		this.progress = progress;
+		otherRules = false;			//uses different rules for the south and midwest brackets
+		
+		teamLabel16 = new JLabel[16];
+		teamLabel8 = new JLabel[8];
+		teamLabel4 = new JLabel[4];
+		teamLabel2 = new JLabel[2];
+		teamLabelChampion = new JLabel();
+		
+		count = 0;
+		
+		bracketFrame = new JFrame("March Madness: " + bracketRegion);
+		bracketFrame.setSize(800,500);
+		
+		//sets the location for the different brackets so they are not overlaid on each other
+		switch(bracketRegion) {
+			case "West":
+				bracketFrame.setLocation(0, 0);
+				break;
+			case "East":
+				bracketFrame.setLocation(0, 250);
+				break;
+			case "South":
+				otherRules = true;							//sets a different rule set for south and midwest
+				bracketFrame.setLocation(800, 0);
+				break;
+			case "MidWest":
+				otherRules = true;
+				bracketFrame.setLocation(800, 250);
+				break;
+			case "Final Four":
+				bracketFrame.setLocationRelativeTo(null);
+				break;
+		}
+		
+		layout = new SpringLayout();
+		teamContainer = bracketFrame.getContentPane();
+		bracketFrame.setLayout(layout);
+		bracketFrame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
+	}
+	
+	//adds the team to the bracket
+	public void addTeam(String team, int roundNumber) {
+		switch(roundNumber) {
+			case 16:
+				bracket16[count] = team;
+				if(count == 15) {
+					count = -1;
+				}
+				break;
+			case 8:
+				bracket8[count] = team;
+				if(count == 7) {
+					count = -1;
+				}
+				break;
+			case 4:
+				bracket4[count] = team;
+				if(count == 3) {
+					count = -1;
+				}
+				break;
+			case 2:
+				bracket4[count] = team;
+				if(count == 1) {
+					count = -1;
+				}
+				break;
+			case 1:
+				bracket4[count] = team;
+				count = -1;
+				break;
+		}
+		count++;
+	}
+	
+	//populates the bracket GUI with the bracket winners
+	public void populateBracket() {
+		setRoundOf16();
+		setRoundOf8();
+		setRoundOf4();
+		setRoundOf2();
+		setChampion();
+	}
+	
+	//displays the bracket
+	public void displayBracket() {
+		bracketFrame.setVisible(true);
+	}
+	
+	//sets the champion on the GUI in the regional brackets
+	private void setChampion() {
+		teamLabelChampion = new JLabel(bracketChampion);
+		
+		teamContainer.add(teamLabelChampion);
+		layout.putConstraint(SpringLayout.WEST, teamLabelChampion, 180, SpringLayout.WEST, teamLabel2[0]);
+		layout.putConstraint(SpringLayout.NORTH, teamLabelChampion, 115, SpringLayout.NORTH, teamLabel2[0]);
+	}
+	
+	//sets the champion on the GUI in the final four brackets
+	public void setChampionFinalFour() {
+		teamLabelChampion = new JLabel(bracketChampion);
+		
+		teamContainer.add(teamLabelChampion);
+		layout.putConstraint(SpringLayout.WEST, teamLabelChampion, 180, SpringLayout.WEST, teamLabel2[0]);
+		layout.putConstraint(SpringLayout.NORTH, teamLabelChampion, 70, SpringLayout.NORTH, teamLabel2[0]);
+	}
+
+	//sets the round of 2 on the GUI
+	private void setRoundOf2() {	
+		for(int i = 0; i< 2; i++) {
+			teamLabel2[i] = new JLabel(bracket2[i]);
+		}
+		
+		teamContainer.add(teamLabel2[0]);
+		layout.putConstraint(SpringLayout.WEST, teamLabel2[0], 180, SpringLayout.WEST, teamLabel4[2]);
+		layout.putConstraint(SpringLayout.NORTH, teamLabel2[0], 50, SpringLayout.NORTH, teamLabel4[0]);
+		
+		teamContainer.add(teamLabel2[1]);
+		layout.putConstraint(SpringLayout.WEST, teamLabel2[1], 180, SpringLayout.WEST, teamLabel4[3]);
+		layout.putConstraint(SpringLayout.NORTH, teamLabel2[1], 50, SpringLayout.NORTH, teamLabel4[2]);
+	}
+	
+	//sets the round of 2 on the GUI for the final four bracket
+	public void setChampionRoundOf2() {	
+		for(int i = 0; i< 2; i++) {
+			teamLabel2[i] = new JLabel(bracket2[i]);
+		}
+		
+		teamContainer.add(teamLabel2[0]);
+		layout.putConstraint(SpringLayout.WEST, teamLabel2[0], 180, SpringLayout.WEST, teamLabel4[2]);
+		layout.putConstraint(SpringLayout.NORTH, teamLabel2[0], 75, SpringLayout.NORTH, teamContainer);
+		
+		teamContainer.add(teamLabel2[1]);
+		layout.putConstraint(SpringLayout.WEST, teamLabel2[1], 180, SpringLayout.WEST, teamLabel4[3]);
+		layout.putConstraint(SpringLayout.NORTH, teamLabel2[1], 25, SpringLayout.NORTH, teamLabel4[2]);
+	}
+	
+	//sets the round of 4 on the GUI for the final four bracket
+	public void setChampionRoundOf4(String team1, String team2, String team3, String team4) {
+		bracket4[0] = team1;
+		bracket4[1] = team2;
+		bracket4[2] = team3;
+		bracket4[3] = team4;
+
+		for(int i = 0; i< 4; i++) {
+			teamLabel4[i] = new JLabel(bracket4[i]);
+		}
+		
+		teamContainer.add(teamLabel4[0]);
+		layout.putConstraint(SpringLayout.WEST, teamLabel4[0], 5, SpringLayout.WEST, teamContainer);
+		layout.putConstraint(SpringLayout.NORTH, teamLabel4[0], 50, SpringLayout.NORTH, teamContainer);
+		
+		for(int i = 1; i < 4; i++) {
+			teamContainer.add(teamLabel4[i]);
+			layout.putConstraint(SpringLayout.WEST, teamLabel4[i], 5, SpringLayout.WEST, teamContainer);
+			layout.putConstraint(SpringLayout.NORTH, teamLabel4[i], 50, SpringLayout.SOUTH, teamLabel4[i-1]);
+		}
+	}
+
+	//sets the round of 4 on the GUI
+	private void setRoundOf4() {
+		for(int i = 0; i< 4; i++) {
+			teamLabel4[i] = new JLabel(bracket4[i]);
+		}
+		
+		teamContainer.add(teamLabel4[0]);
+		layout.putConstraint(SpringLayout.WEST, teamLabel4[0], 180, SpringLayout.WEST, teamLabel8[2]);
+		layout.putConstraint(SpringLayout.NORTH, teamLabel4[0], 25, SpringLayout.NORTH, teamLabel8[0]);
+		
+		for(int i = 1; i < 4; i++) {
+			teamContainer.add(teamLabel4[i]);
+			if (i % 2 == 0) {
+				layout.putConstraint(SpringLayout.WEST, teamLabel4[i], 180, SpringLayout.WEST, teamLabel8[i*2+1]);
+				layout.putConstraint(SpringLayout.NORTH, teamLabel4[i], 25, SpringLayout.NORTH, teamLabel8[i*2]);
+			} else {
+				layout.putConstraint(SpringLayout.WEST, teamLabel4[i], 180, SpringLayout.WEST, teamLabel8[i*2+1]);
+				layout.putConstraint(SpringLayout.NORTH, teamLabel4[i], 25, SpringLayout.NORTH, teamLabel8[i*2]);
+			}
+		}
+	}
+
+	//sets the round of 8 on the GUI
+	private void setRoundOf8() {
+		for(int i = 0; i< 8; i++) {
+			teamLabel8[i] = new JLabel(bracket8[i]);
+		}
+		
+		teamContainer.add(teamLabel8[0]);
+		layout.putConstraint(SpringLayout.WEST, teamLabel8[0], 180, SpringLayout.WEST, teamLabel16[2]);
+		layout.putConstraint(SpringLayout.NORTH, teamLabel8[0], 10, SpringLayout.NORTH, teamLabel16[0]);
+		
+		for(int i = 1; i < 8; i++) {
+			teamContainer.add(teamLabel8[i]);
+			if (i % 2 == 0) {
+				layout.putConstraint(SpringLayout.WEST, teamLabel8[i], 180, SpringLayout.WEST, teamLabel16[i*2+1]);
+				layout.putConstraint(SpringLayout.NORTH, teamLabel8[i], 5, SpringLayout.NORTH, teamLabel16[i*2]);
+			} else {
+				layout.putConstraint(SpringLayout.WEST, teamLabel8[i], 180, SpringLayout.WEST, teamLabel16[i*2+1]);
+				layout.putConstraint(SpringLayout.NORTH, teamLabel8[i], 5, SpringLayout.NORTH, teamLabel16[i*2]);
+			}
+		}
+	}
+
+	//sets the round of 16 on the GUI
+	private void setRoundOf16() {
+		for(int i = 0; i< 16; i++) {
+			teamLabel16[i] = new JLabel(bracket16[i]);
+		}
+		
+		teamContainer.add(teamLabel16[0]);
+		layout.putConstraint(SpringLayout.WEST, teamLabel16[0], 5, SpringLayout.WEST, teamContainer);
+		layout.putConstraint(SpringLayout.NORTH, teamLabel16[0], 5, SpringLayout.NORTH, teamContainer);
+		
+		for(int i = 1; i < 16; i++) {
+			teamContainer.add(teamLabel16[i]);
+			if (i % 2 == 0) {
+				layout.putConstraint(SpringLayout.WEST, teamLabel16[i], 5, SpringLayout.WEST, teamContainer);
+				layout.putConstraint(SpringLayout.NORTH, teamLabel16[i], 20, SpringLayout.SOUTH, teamLabel16[i-1]);
+			} else {
+				layout.putConstraint(SpringLayout.WEST, teamLabel16[i], 5, SpringLayout.WEST, teamContainer);
+				layout.putConstraint(SpringLayout.NORTH, teamLabel16[i], 5, SpringLayout.SOUTH, teamLabel16[i-1]);
+			}
+		}
+	}
+
+	//finds the winner of the round
+	public void findWinners(int round) {
+		String winner = "";
+		
+		switch(round) {
+		case 16:
+			for(int i = 0; i < 16; i = i + 2) {
+				if (i == 0 || i == 6 || i == 10 || i == 14) {
+					//top 4 seeded get the win for the round of 16
+					winner = bracket16[i];
+				} else {
+					winner = calculateWinner(bracket16[i], bracket16[i+1]);
+				}
+				progress.updateValue();					//updates the progress bar
+				//sets the winner as a team in the next bracket
+				if(i == 0) {
+					bracket8[0] = winner;
+				} else {
+					bracket8[i/2] = winner;
+				}
+			}
+			break;
+		case 8:
+			for(int i = 0; i < 8; i = i + 2) {
+				winner = calculateWinner(bracket8[i], bracket8[i+1]);
+				progress.updateValue();					//updates the progress bar
+				//sets the winner as a team in the next bracket
+				if(i == 0) {
+					bracket4[0] = winner;
+				} else {
+					bracket4[i/2] = winner;
+				}
+			}
+			break;
+		case 4:
+			for(int i = 0; i < 4; i = i + 2) {
+				winner = calculateWinner(bracket4[i], bracket4[i+1]);
+				progress.updateValue();					//updates the progress bar
+				//sets the winner as a team in the next bracket
+				if(i == 0) {
+					bracket2[0] = winner;
+				} else {
+					bracket2[i/2] = winner;
+				}
+			}
+			break;
+		case 2:
+			//finds the winner and sets the champion
+			winner = calculateWinner(bracket2[0], bracket2[1]);
+			progress.updateValue();						//updates the progress bar
+			bracketChampion = winner;
+			break;
+		}
+	}
+
+	//calculates the winner given the two competing teams
+	private String calculateWinner(String team1, String team2) {
+		String winner = "";
+		//season stats are the total stats for the season for the team.
+		//average game stats are the average stats per game for the team.
+		double[] seasonStatsTeam1 = new double[15];
+		double[] averageGameStatsTeam1 = new double[6];
+		
+		double[] seasonStatsTeam2 = new double[15];
+		double[] averageGameStatsTeam2 = new double[6];
+		
+		statNum = 0;
+		statIndex = 0;
+		
+		//gets the URL for the team
+		String team1URL = getURL(team1);
+		String team2URL = getURL(team2);
+		
+		try {
+			org.jsoup.nodes.Document doc = Jsoup.connect(team1URL).get();
+			
+			//average game stats: PTS, REB, AST, STL, BLK, TO, FGP, FTP, 3PP
+			//season stats: FGM, FGA, FTM, FTA, 3PM, 3PA, PTS, OR, DR, REB, AST, TO, STL, BLK
+			doc.select("span").forEach( item -> {
+				//finds the total stats HTML class for the team
+				if(item.toString().contains("Stats__Total")) {
+					if (statNum >= 3 && statNum <= 8) {					//average game stats
+						String[] temp = item.toString().split(">");
+						String[] temp2 = temp[1].split("<");
+						averageGameStatsTeam1[statIndex] = Double.parseDouble(temp2[0]);
+						statIndex++;
+						if(statNum == 8) {								//rests the index for reuse
+							statIndex = 0;
+						}
+					} 
+					if(statNum >= 14) {									//total season stats
+						String[] temp = item.toString().split(">");
+						String[] temp2 = temp[1].split("<");
+						seasonStatsTeam1[statIndex] = Double.parseDouble(temp2[0]);
+						statIndex++;
+					}
+					statNum++;
+				}
+			});
+			
+			//rests the counters for teams 2
+			statNum = 0;
+			statIndex = 0;
+			
+			
+			//does the same thing as above but for team 2
+			org.jsoup.nodes.Document doc2 = Jsoup.connect(team2URL).get();
+			
+			//average game stats: PTS, REB, AST, STL, BLK, TO, FGP, FTP, 3PP
+			//season stats:FGM, FGA, FTM, FTA, 3PM, 3PA, PTS, OR, DR, REB, AST, TO, STL, BLK
+			doc2.select("span").forEach( item -> {
+				if(item.toString().contains("Stats__Total")) {
+					if (statNum >= 3 && statNum <= 8) {
+						String[] temp = item.toString().split(">");
+						String[] temp2 = temp[1].split("<");
+						averageGameStatsTeam2[statIndex] = Double.parseDouble(temp2[0]);
+						statIndex++;
+						if(statNum == 8) {
+							statIndex = 0;
+						}
+					}
+					if(statNum >= 14) {
+						String[] temp = item.toString().split(">");
+						String[] temp2 = temp[1].split("<");
+						seasonStatsTeam2[statIndex] = Double.parseDouble(temp2[0]);
+						statIndex++;
+					}
+					statNum++;
+				}
+			});
+		} catch (IOException e) {
+			e.printStackTrace();
+		}
+		
+		//finds the winner based on the stats retrieved above
+		winner = getRulesFindWinner(seasonStatsTeam1, seasonStatsTeam2, averageGameStatsTeam1,averageGameStatsTeam2,
+			team1, team2);
+		
+		return winner;
+	}
+	
+	//returns the champion for the bracket
+	public String getChampion() {
+		return bracketChampion;
+	}
+
+	//gets the rules from the rules.txt and other rules.txt documents and finds the winner between the two teams.
+	private String getRulesFindWinner(double[] seasonStatsTeam1, double[] seasonStatsTeam2, 
+			double[] averageGameStatsTeam1, double[] averageGameStatsTeam2, String team1, String team2) {
+		
+		String winner = "";
+		int[] rulePoints = new int[22];
+		double totalPointsTeam1 = 0;
+		double averagePointsTeam1 = 0;
+		double seasonPointsTeam1 = 0;
+		double totalPointsTeam2 = 0;
+		double averagePointsTeam2 = 0;
+		double seasonPointsTeam2 = 0;
+		int index = 0;
+		
+		//gets the rules.txt file and closes the program if not found
+		File objFile = new File("rules.txt");
+		if(!objFile.exists()) {
+			JOptionPane.showMessageDialog(null, "Did not find rules.txt. Place in the same folder location" + 
+					" as this program.");
+			System.exit(0);
+		}
+		
+		//gets the other rules.txt file and closes the program if not found
+		if (otherRules) {
+			objFile = new File("other rules.txt");
+			if(!objFile.exists()) {
+				JOptionPane.showMessageDialog(null, "Did not find other rules.txt. Place in the same folder " +
+						"location as this program.");
+				System.exit(0);
+			}
+		} 
+			
+		try {
+			Scanner reader = new Scanner(objFile);
+			//gets the rule and saves it to the rule points array
+			while(reader.hasNextLine()) {
+				String[] temp = reader.nextLine().split(":");
+				rulePoints[index] = Integer.parseInt(temp[1]);
+				index++;
+			}
+			reader.close();
+		} catch (FileNotFoundException e) {
+			e.printStackTrace();
+		}
+		
+		//iterates through the rules and finds the average points and season points for the two teams
+		for(int i = 2; i < 22; i++) {
+			if (i <= 7) {
+				averagePointsTeam1 = averagePointsTeam1 + (averageGameStatsTeam1[i-2] * rulePoints[i]);
+				averagePointsTeam2 = averagePointsTeam2 + (averageGameStatsTeam2[i-2] * rulePoints[i]);
+			} else {
+				seasonPointsTeam1 = seasonPointsTeam1 + (seasonStatsTeam1[i-8] * rulePoints[i]);
+				seasonPointsTeam2 = seasonPointsTeam2 + (seasonStatsTeam2[i-8] * rulePoints[i]);
+			}
+			
+		}
+		
+		//finds the average and season points for team 1 based on the percentage from lines 1/2
+		averagePointsTeam1 = averagePointsTeam1 * rulePoints[0] / 100;
+		seasonPointsTeam1 = seasonPointsTeam1 * rulePoints[1] / 100;
+		
+		//finds the average and season points for team 2 based on the percentage from lines 1/2
+		averagePointsTeam2 = averagePointsTeam2 * rulePoints[0] / 100;
+		seasonPointsTeam2 = seasonPointsTeam2 * rulePoints[1] / 100;
+		
+		//finds the total points for teams 1 and 2
+		totalPointsTeam1 = averagePointsTeam1 + seasonPointsTeam1;
+		totalPointsTeam2 = averagePointsTeam2 + seasonPointsTeam2;
+
+		//when manipulating the rules, uncomment this to see the relative values between the average points,
+		//season points, and total points
+/*		System.out.println(team1 + " average points: " + averagePointsTeam1);
+		System.out.println(team1 + " season points: " + seasonPointsTeam1);
+		System.out.println(team1 + " total points: " + totalPointsTeam1);
+
+		System.out.println(team2 + " average points: " + averagePointsTeam2);
+		System.out.println(team2 + " season points: " + seasonPointsTeam2);
+		System.out.println(team2 + " total points: " + totalPointsTeam2 + "\n\n");
+*/		
+		//sets the winner based on the total points
+		if(totalPointsTeam1 > totalPointsTeam2) {
+			winner = team1;
+		} else {
+			winner = team2;
+		}
+		
+		return winner;
+	}
+
+	//gets the URL for the team. to update this statement with more teams, add the team name and URL 
+	//to the case statement below. The URL should be for the desired team in the stats link on this page:
+	//https://www.espn.com/mens-college-basketball/teams
+	private String getURL(String team) {
+		
+		String URL = "";
+		
+		switch(team) {
+		case "Akron Zips":
+			URL = "https://www.espn.com/mens-college-basketball/team/stats/_/id/2006";
+			break;
+		case "Alabama Crimson Tide":
+			URL = "https://www.espn.com/mens-college-basketball/team/stats/_/id/333";
+			break;
+		case "Arizona Wildcats":
+			URL = "https://www.espn.com/mens-college-basketball/team/stats/_/id/12";
+			break;
+		case "Arkansas Razorbacks":
+			URL = "https://www.espn.com/mens-college-basketball/team/stats/_/id/8";
+			break;
+		case "Auburn Tigers":
+			URL = "https://www.espn.com/mens-college-basketball/team/stats/_/id/2";
+			break;
+		case "Baylor Bears":
+			URL = "https://www.espn.com/mens-college-basketball/team/stats/_/id/239";
+			break;
+		case "Boise State Broncos":
+			URL = "https://www.espn.com/mens-college-basketball/team/stats/_/id/68";
+			break;
+		case "Chattanooga Mocs":
+			URL = "https://www.espn.com/mens-college-basketball/team/stats/_/id/236";
+			break;
+		case "Colgate Raiders":
+			URL = "https://www.espn.com/mens-college-basketball/team/stats/_/id/2142";
+			break;
+		case "Colorado State Rams":
+			URL = "https://www.espn.com/mens-college-basketball/team/stats/_/id/36";
+			break;
+		case "Creighton Bluejays":
+			URL = "https://www.espn.com/mens-college-basketball/team/stats/_/id/156";
+			break;
+		case "CSU Fullerton Titans":
+			URL = "https://www.espn.com/mens-college-basketball/team/stats/_/id/2239";
+			break;
+		case "Davidson Wildcats":
+			URL = "https://www.espn.com/mens-college-basketball/team/stats/_/id/2166";
+			break;
+		case "Delaware Blue Hens":
+			URL = "https://www.espn.com/mens-college-basketball/team/stats/_/id/48";
+			break;
+		case "Duke Blue Devils":
+			URL = "https://www.espn.com/mens-college-basketball/team/stats/_/id/150";
+			break;
+		case "Georgia State Panthers":
+			URL = "https://www.espn.com/mens-college-basketball/team/stats/_/id/2247";
+			break;
+		case "Gonzaga Bulldogs":
+			URL = "https://www.espn.com/mens-college-basketball/team/stats/_/id/2250";
+			break;
+		case "Houston Cougars":
+			URL = "https://www.espn.com/mens-college-basketball/team/stats/_/id/248";
+			break;
+		case "Illinois Fighting Illini":
+			URL = "https://www.espn.com/mens-college-basketball/team/stats/_/id/356";
+			break;
+		case "Indiana Hoosiers":
+			URL = "https://www.espn.com/mens-college-basketball/team/stats/_/id/84";
+			break;
+		case "Iowa Hawkeyes":
+			URL = "https://www.espn.com/mens-college-basketball/team/stats/_/id/2294";
+			break;
+		case "Iowa State Cyclones":
+			URL = "https://www.espn.com/mens-college-basketball/team/stats/_/id/66";
+			break;
+		case "Jacksonville State Gamecockers":
+			URL = "https://www.espn.com/mens-college-basketball/team/stats/_/id/55";
+			break;
+		case "Kansas Jayhawks":
+			URL = "https://www.espn.com/mens-college-basketball/team/stats/_/id/2305";
+			break;
+		case "Kentucky Wildcats":
+			URL = "https://www.espn.com/mens-college-basketball/team/stats/_/id/96";
+			break;
+		case "Longwood Lancers":
+			URL = "https://www.espn.com/mens-college-basketball/team/stats/_/id/2344";
+			break;
+		case "Loyola Chicago Ramblers":
+			URL = "https://www.espn.com/mens-college-basketball/team/stats/_/id/2350";
+			break;
+		case "LSU Tigers":
+			URL = "https://www.espn.com/mens-college-basketball/team/stats/_/id/99";
+			break;
+		case "Marquette Golden Eagles":
+			URL = "https://www.espn.com/mens-college-basketball/team/stats/_/id/269";
+			break;
+		case "Memphis Tigers":
+			URL = "https://www.espn.com/mens-college-basketball/team/stats/_/id/235";
+			break;
+		case "Miami Hurricanes":
+			URL = "https://www.espn.com/mens-college-basketball/team/stats/_/id/2390";
+			break;
+		case "Michigan State Spartans":
+			URL = "https://www.espn.com/mens-college-basketball/team/stats/_/id/127";
+			break;
+		case "Michigan Wolverines":
+			URL = "https://www.espn.com/mens-college-basketball/team/stats/_/id/130";
+			break;
+		case "Montana State Bobcats":
+			URL = "https://www.espn.com/mens-college-basketball/team/stats/_/id/147";
+			break;
+		case "Murray State Racers":
+			URL = "https://www.espn.com/mens-college-basketball/team/stats/_/id/93";
+			break;
+		case "New Mexico State Aggies":
+			URL = "https://www.espn.com/mens-college-basketball/team/stats/_/id/166";
+			break;
+		case "Norfolk State Spartans":
+			URL = "https://www.espn.com/mens-college-basketball/team/stats/_/id/2450";
+			break;
+		case "North Carolina Tar Heels":
+			URL = "https://www.espn.com/mens-college-basketball/team/stats/_/id/153";
+			break;
+		case "Notre Dame Fighting Irish":
+			URL = "https://www.espn.com/mens-college-basketball/team/stats/_/id/87";
+			break;
+		case "Ohio State Buckeyes":
+			URL = "https://www.espn.com/mens-college-basketball/team/stats/_/id/194";
+			break;
+		case "Providence Friars":
+			URL = "https://www.espn.com/mens-college-basketball/team/stats/_/id/2507";
+			break;
+		case "Purdue Boilermakers":
+			URL = "https://www.espn.com/mens-college-basketball/team/stats/_/id/2509";
+			break;
+		case "Richmond Spiders":
+			URL = "https://www.espn.com/mens-college-basketball/team/stats/_/id/257";
+			break;
+		case "Saint Mary's Gaels":
+			URL = "https://www.espn.com/mens-college-basketball/team/stats/_/id/2608";
+			break;
+		case "Saint Peters Peacocks":
+			URL = "https://www.espn.com/mens-college-basketball/team/stats/_/id/2612";
+			break;
+		case "San Diego State Aztecs":
+			URL = "https://www.espn.com/mens-college-basketball/team/stats/_/id/21";
+			break;
+		case "San Francisco Dons":
+			URL = "https://www.espn.com/mens-college-basketball/team/stats/_/id/2539";
+			break;
+		case "Seton Hall Pirates":
+			URL = "https://www.espn.com/mens-college-basketball/team/stats/_/id/2550";
+			break;
+		case "South Dakota State Jackrabbits":
+			URL = "https://www.espn.com/mens-college-basketball/team/stats/_/id/2571";
+			break;
+		case "TCU Horned Frogs":
+			URL = "https://www.espn.com/mens-college-basketball/team/stats/_/id/2628";
+			break;
+		case "Tennessee Volunteers":
+			URL = "https://www.espn.com/mens-college-basketball/team/stats/_/id/2633";
+			break;
+		case "Texas Longhorns":
+			URL = "https://www.espn.com/mens-college-basketball/team/stats/_/id/251";
+			break;
+		case "Texas Southern Tigers":
+			URL = "https://www.espn.com/mens-college-basketball/team/stats/_/id/2640";
+			break;
+		case "Texas Tech Red Raiders":
+			URL = "https://www.espn.com/mens-college-basketball/team/stats/_/id/2641";
+			break;
+		case "UAB Blazers":
+			URL = "https://www.espn.com/mens-college-basketball/team/stats/_/id/5";
+			break;
+		case "UCLA Bruins":
+			URL = "https://www.espn.com/mens-college-basketball/team/stats/_/id/26";
+			break;
+		case "Uconn Huskies":
+			URL = "https://www.espn.com/mens-college-basketball/team/stats/_/id/41";
+			break;
+		case "USC Trojans":
+			URL = "https://www.espn.com/mens-college-basketball/team/stats/_/id/30";
+			break;
+		case "Vermont Catamounts":
+			URL = "https://www.espn.com/mens-college-basketball/team/stats/_/id/261";
+			break;
+		case "Villanova Wildcats":
+			URL = "https://www.espn.com/mens-college-basketball/team/stats/_/id/222";
+			break;
+		case "Virginia Tech Hokies":
+			URL = "https://www.espn.com/mens-college-basketball/team/stats/_/id/259";
+			break;
+		case "Wisconsin Badgers":
+			URL = "https://www.espn.com/mens-college-basketball/team/stats/_/id/275";
+			break;
+		case "Wright State Raiders":
+			URL = "https://www.espn.com/mens-college-basketball/team/stats/_/id/2750";
+			break;
+		case "Yale Bulldogs":
+			URL = "https://www.espn.com/mens-college-basketball/team/stats/_/id/43";
+			break;
+		default:
+			JOptionPane.showMessageDialog(null, team + " is not found. Update the switch statement in the " +
+					"BracketGUI/getURL class/method (bottom of class)");
+			System.exit(0);
+		}
+		
+		return URL;
+	}
+	
+}
+
+----------------------------------------------------------------------------------------------------------------------------------------------------
+
+package marchmadness;
+import java.awt.event.WindowEvent;
+
+import javax.swing.JFrame;
+import javax.swing.JPanel;
+import javax.swing.JProgressBar;
+
+public class ProgressGUI extends JPanel{
+
+	JPanel progressPanel;
+	JProgressBar progressBar;
+	JFrame progressFrame;
+	
+	private int progressCount;
+	
+	public ProgressGUI(int max) {
+		
+		progressPanel = new JPanel();
+		progressBar = new JProgressBar();
+		progressFrame = new JFrame();
+		
+		progressCount = 0;
+		
+		progressBar.setMinimum(0);
+		progressBar.setMaximum(max);
+		progressBar.setStringPainted(true);
+		progressPanel.add(progressBar);
+		progressFrame.setContentPane(progressBar);
+		progressFrame.pack();
+		progressFrame.setLocationRelativeTo(null);
+		progressFrame.setVisible(true);
+	}
+	
+	//updates the progress bar
+	public void updateValue() {
+		progressBar.setValue(progressCount);
+		progressCount++;
+	}
+	
+	//closes the progress bar GUI
+	public void close() {
+		progressFrame.dispatchEvent(new WindowEvent(progressFrame, WindowEvent.WINDOW_CLOSING));
+	}
+	
+}
