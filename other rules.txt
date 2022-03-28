@@ -1,0 +1,22 @@
+Average Game Percent(%):90
+Season Percent(%):20
+Points Per Game:3
+Rebounds Per Game:2
+Assists Per Game:5
+Steals Per Game:3
+Blocks Per Game:3
+Turn Overs Per Game:-3
+Field Goals Made:1
+Field Goals Attempted:0
+Free Throws Made:1
+Free Throws Attempted:0
+3 Points Made:1
+3 Points Attempted:0
+Points:0
+Offensive Rebounds:0
+Defensive Rebounds:0
+Rebounds:1
+Assists:1
+Turn Overs:-2
+Steals:1
+Blocks:1
